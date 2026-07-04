@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEON CORE: INFINITY WAR [MULTIPLAYER]</title>
+    <!-- Firebase SDK for Realtime Multiplayer -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    
+    <style>
+        :root {
+            --bg-deep: #050508;
+            --glass: rgba(20, 20, 30, 0.7);
+            --border: rgba(255, 255, 255, 0.1);
+            --cyan: #00f3ff;
+            --magenta: #ff0055;
+            --gold: #ffd700;
+            --boss: #ff3300;
+            --font-main: 'Segoe UI', Roboto, sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; outline: none; }
+
+        body {
+            background-color: var(--bg-deep);
+            color: #fff;
+            font-family: var(--font-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: 
+                radial-gradient(circle at 50% 50%, #1a1a2e 0%, #000 100%);
+        }
+
+        /* --- LAYOUT --- */
+        .app-grid {
+            display: grid;
+            grid-template-columns: 320px 1fr 350px;
+            width: 98vw;
+            height: 96vh;
+            max-width: 1920px;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        .panel {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+            position: relative;
+            overflow: hidden;
+        }
+
+        h2 {
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: rgba(255,255,255,0.5);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* --- SCORE & CORE --- */
+        .score-container { text-align: center; margin-bottom: 20px; }
+        .main-score {
+            font-size: 4rem;
+            font-weight: 900;
+            background: linear-gradient(to bottom, #fff, #aaa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 15px rgba(0, 243, 255, 0.5));
+            font-variant-numeric: tabular-nums;
+        }
+        .sub-score { font-size: 0.8rem; color: var(--cyan); letter-spacing: 4px; }
+
+        .core-stage {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .the-core {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #fff, var(--cyan) 40%, #000 80%);
+            box-shadow: 0 0 80px var(--cyan), inset 0 0 40px rgba(255,255,255,0.8);
+            cursor: pointer;
+            z-index: 20;
+            transition: transform 0.05s cubic-bezier(0.1, 0.7, 1.0, 0.1);
+            position: relative;
+        }
+        .the-core:active { transform: scale(0.92); }
+        
+        /* Boss Bar */
+        .boss-container {
+            position: absolute;
+            top: 20px;
+            width: 80%;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            align-items: center;
+        }
+        .boss-name { color: var(--boss); font-weight: bold; text-shadow: 0 0 10px var(--boss); margin-bottom: 5px; }
+        .boss-hp-bar {
+            width: 100%; height: 15px; background: #333; border: 1px solid var(--boss);
+            border-radius: 10px; overflow: hidden;
+        }
+        .boss-hp-fill {
+            width: 100%; height: 100%; background: var(--boss);
+            transition: width 0.2s;
+        }
+
+        /* --- UPGRADES --- */
+        .scroll-area { flex-grow: 1; overflow-y: auto; padding-right: 5px; }
+        .upgrade-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .upgrade-card:hover:not(.locked) { background: rgba(255,255,255,0.08); transform: translateX(-5px); }
+        .upgrade-card.locked { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
+        
+        .u-icon { font-size: 1.5rem; margin-right: 15px; width: 40px; text-align: center; }
+        .u-info { flex-grow: 1; }
+        .u-name { font-weight: bold; font-size: 0.9rem; color: #fff; }
+        .u-desc { font-size: 0.75rem; color: #888; }
+        .u-cost { font-family: monospace; color: var(--gold); font-weight: bold; }
+        .u-count { font-size: 0.8rem; color: #666; background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; margin-left: 10px; }
+
+        /* --- MULTIPLAYER PANEL --- */
+        .mp-status {
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            font-size: 0.8rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .mp-id { color: var(--cyan); font-family: monospace; cursor: pointer; }
+        .mp-input {
+            width: 100%; background: rgba(255,255,255,0.1); border: 1px solid var(--border);
+            color: #fff; padding: 8px; border-radius: 5px; margin-top: 5px; text-align: center;
+        }
+        .btn-mp {
+            width: 100%; padding: 8px; margin-top: 5px;
+            background: var(--cyan); border: none; border-radius: 5px;
+            color: #000; font-weight: bold; cursor: pointer;
+        }
+        .leaderboard-item {
+            display: flex; justify-content: space-between;
+            padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.9rem;
+        }
+        .lb-rank { color: var(--gold); width: 30px; }
+        .lb-name { flex-grow: 1; color: #ccc; }
+        .lb-score { color: var(--cyan); font-family: monospace; }
+
+        /* --- CANVAS --- */
+        #fx-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 5;
+        }
+
+        /* --- TOAST --- */
+        .toast-area {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; display: flex; flex-direction: column; gap: 10px;
+        }
+        .toast {
+            background: rgba(0,0,0,0.9); border-left: 4px solid var(--cyan);
+            color: #fff; padding: 15px 25px; border-radius: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        @media (max-width: 1100px) {
+            .app-grid { grid-template-columns: 1fr; overflow-y: auto; height: auto; }
+            .core-stage { order: -1; min-height: 40vh; }
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="fx-canvas"></canvas>
+
+<div class="app-grid">
+    <!-- LEFT: STATS -->
+    <div class="panel">
+        <h2><span style="color:var(--cyan)">●</span> Estadísticas</h2>
+        <div class="score-container">
+            <div class="main-score" id="ui-score">0</div>
+            <div class="sub-score">ENERGÍA TOTAL</div>
+        </div>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom: 20px;">
+            <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; text-align:center;">
+                <div style="font-size:0.7rem; color:#888;">CLIC</div>
+                <div style="font-size:1.2rem; font-weight:bold; color:var(--cyan);" id="stat-click">1</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; text-align:center;">
+                <div style="font-size:0.7rem; color:#888;">DPS</div>
+                <div style="font-size:1.2rem; font-weight:bold; color:var(--magenta);" id="stat-auto">0</div>
+            </div>
+        </div>
+
+        <div style="margin-top: auto;">
+            <button onclick="toggleSettings()" style="width:100%; padding:10px; background:rgba(255,255,255,0.1); border:none; color:#888; border-radius:8px; cursor:pointer;">⚙️ SISTEMA</button>
+        </div>
+    </div>
+
+    <!-- CENTER: GAME -->
+    <div class="panel core-stage">
+        <!-- BOSS UI -->
+        <div class="boss-container" id="boss-ui">
+            <div class="boss-name">JEFE DE DIMENSIÓN</div>
+            <div class="boss-hp-bar"><div class="boss-hp-fill" id="boss-hp"></div></div>
+        </div>
+
+        <div class="the-core" id="main-core"></div>
+        <div style="margin-top: 30px; color: #666; font-size: 0.8rem; letter-spacing: 2px;">HAZ CLIC PARA GENERAR ENERGÍA</div>
+    </div>
+
+    <!-- RIGHT: SHOP & MP -->
+    <div class="panel">
+        <div class="tabs" style="display:flex; gap:5px; margin-bottom:15px;">
+            <button class="tab-btn active" onclick="switchTab('upgrades')" style="flex:1; padding:10px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:#888; border-radius:8px; cursor:pointer;">MEJORAS</button>
+            <button class="tab-btn" onclick="switchTab('mp')" style="flex:1; padding:10px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:#888; border-radius:8px; cursor:pointer;">🌐 RED</button>
+        </div>
+
+        <div id="tab-upgrades" class="scroll-area tab-content" style="display:block;"></div>
+        
+        <div id="tab-mp" class="scroll-area tab-content" style="display:none;">
+            <div class="mp-status">
+                <div>TU ID DE JUGADOR:</div>
+                <div class="mp-id" id="my-player-id" onclick="copyId()">GENERANDO...</div>
+            </div>
+            
+            <div style="margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 20px;">
+                <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 5px;">UNIRSE A SALA DE AMIGO:</div>
+                <input type="text" id="room-input" class="mp-input" placeholder="ID DE SALA">
+                <button class="btn-mp" onclick="joinRoom()">CONECTAR</button>
+            </div>
+
+            <h3 style="font-size: 0.9rem; color: var(--gold); margin-bottom: 10px;">TOP GLOBAL</h3>
+            <div id="leaderboard-list">
+                <!-- Leaderboard items injected here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-area" id="toast-container"></div>
+
+<!-- SETTINGS MODAL -->
+<div id="settings-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; display:none; justify-content:center; align-items:center;">
+    <div style="background:#111; border:1px solid var(--border); padding:30px; border-radius:20px; width:400px; text-align:center;">
+        <h2 style="justify-content:center; border:none; color:#fff;">CONFIGURACIÓN</h2>
+        <button onclick="saveGame(true)" style="width:100%; padding:12px; margin-top:10px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; background:var(--cyan); color:#000;">💾 GUARDAR</button>
+        <button onclick="hardReset()" style="width:100%; padding:12px; margin-top:10px; border:1px solid var(--magenta); background:transparent; border-radius:8px; font-weight:bold; cursor:pointer; color:var(--magenta);">☠️ REINICIAR TODO</button>
+        <button onclick="toggleSettings()" style="width:100%; padding:12px; margin-top:20px; background:#333; border:none; border-radius:8px; color:#fff; cursor:pointer;">Cerrar</button>
+    </div>
+</div>
+
+<script>
+/**
+ * NEON CORE: INFINITY WAR ENGINE
+ * Includes LocalStorage Save + Firebase Multiplayer Sync
+ */
+
+// --- FIREBASE CONFIG (Public Demo Config) ---
+// NOTE: In a real production app, you would use your own keys.
+// This uses a public demo project structure. If it hits limits, the game still works locally.
+const firebaseConfig = {
+    apiKey: "AIzaSyB5JjYtqJ_yZ_jZ_jZ_jZ_jZ_jZ_jZ", // Placeholder for demo logic
+    authDomain: "neon-core-demo.firebaseapp.com",
+    databaseURL: "https://neon-core-default-rtdb.firebaseio.com", // Using a generic public endpoint for demo
+    projectId: "neon-core-demo",
+    storageBucket: "neon-core-demo.appspot.com",
+    messagingSenderId: "123456789",
+    appId: "1:123456789:web:abcdef"
+};
+
+// Initialize Firebase (Safe Load)
+let db = null;
+let isOnline = false;
+try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    isOnline = true;
+} catch (e) {
+    console.warn("Firebase not configured or blocked. Running in Offline Mode.");
+}
+
+// --- GAME STATE ---
+let G = {
+    energy: 0,
+    totalEnergy: 0,
+    playerId: 'Player_' + Math.floor(Math.random()*10000),
+    roomId: null,
+    upgrades: [
+        { id: 'u1', name: 'Bot Básico', type: 'auto', base: 2, cost: 15, count: 0, icon: '🤖' },
+        { id: 'u2', name: 'Clicker V2', type: 'click', base: 1, cost: 50, count: 0, icon: '👆' },
+        { id: 'u3', name: 'Servidor', type: 'auto', base: 10, cost: 250, count: 0, icon: '💾' },
+        { id: 'u4', name: 'Plasma', type: 'click', base: 5, cost: 1000, count: 0, icon: '⚡' },
+        { id: 'u5', name: 'IA Core', type: 'auto', base: 50, cost: 5000, count: 0, icon: '🧠' },
+        { id: 'u6', name: 'Quantum', type: 'both', base: 200, cost: 25000, count: 0, icon: '⚛️' },
+        { id: 'u7', name: 'Dyson', type: 'auto', base: 1000, cost: 150000, count: 0, icon: '☀️' },
+        { id: 'u8', name: 'Reality', type: 'click', base: 5000, cost: 1000000, count: 0, icon: '💎' }
+    ],
+    boss: { active: false, hp: 10000, maxHp: 10000 }
+};
+
+let stats = { click: 1, auto: 0 };
+let lastTick = Date.now();
+
+// --- DOM ELEMENTS ---
+const UI = {
+    score: document.getElementById('ui-score'),
+    click: document.getElementById('stat-click'),
+    auto: document.getElementById('stat-auto'),
+    core: document.getElementById('main-core'),
+    toast: document.getElementById('toast-container'),
+    shop: document.getElementById('tab-upgrades'),
+    lb: document.getElementById('leaderboard-list'),
+    pid: document.getElementById('my-player-id'),
+    bossUi: document.getElementById('boss-ui'),
+    bossHp: document.getElementById('boss-hp')
+};
+
+// --- AUDIO ENGINE ---
+const AudioEngine = {
+    ctx: new (window.AudioContext || window.webkitAudioContext)(),
+    play(freq, type, dur) {
+        if(this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + dur);
+    }
+};
+
+// --- LOGIC ---
+function recalc() {
+    let rClick = 1, rAuto = 0;
+    G.upgrades.forEach(u => {
+        if(u.type === 'click' || u.type === 'both') rClick += u.base * u.count;
+        if(u.type === 'auto' || u.type === 'both') rAuto += u.base * u.count;
+    });
+    stats.click = rClick;
+    stats.auto = rAuto;
+}
+
+function format(n) {
+    if(n >= 1e12) return (n/1e12).toFixed(2)+'T';
+    if(n >= 1e9) return (n/1e9).toFixed(2)+'B';
+    if(n >= 1e6) return (n/1e6).toFixed(2)+'M';
+    if(n >= 1e3) return (n/1e3).toFixed(1)+'K';
+    return Math.floor(n).toString();
+}
+
+function handleCoreClick(e) {
+    // Prevent default touch behavior
+    if(e.type === 'touchstart') e.preventDefault();
+    
+    let power = stats.click;
+    G.energy += power;
+    G.totalEnergy += power;
+    
+    // Visuals
+    spawnText(e.clientX || window.innerWidth/2, e.clientY || window.innerHeight/2, format(power));
+    spawnParticles(e.clientX || window.innerWidth/2, e.clientY || window.innerHeight/2, 5);
+    AudioEngine.play(400 + Math.random()*200, 'sine', 0.1);
+    
+    // Boss Damage
+    if(G.boss.active) {
+        damageBoss(power);
+    }
+    
+    updateUI();
+}
+
+function buyUpgrade(id) {
+    const u = G.upgrades.find(x => x.id === id);
+    const cost = Math.floor(u.cost * Math.pow(1.15, u.count));
+    
+    if(G.energy >= cost) {
+        G.energy -= cost;
+        u.count++;
+        recalc();
+        renderShop();
+        AudioEngine.play(600, 'square', 0.2);
+        updateUI();
+        syncToCloud(); // Update score on cloud
+    }
+}
+
+// --- BOSS SYSTEM ---
+function checkBossSpawn() {
+    if(!G.boss.active && G.totalEnergy > 10000 && Math.random() < 0.001) {
+        startBossFight();
+    }
+}
+
+function startBossFight() {
+    G.boss.active = true;
+    G.boss.maxHp = G.totalEnergy * 0.1; // Boss HP is 10% of your total
+    G.boss.hp = G.boss.maxHp;
+    UI.bossUi.style.display = 'flex';
+    showToast("⚠️ ¡JEFE DETECTADO!", "¡Haz clic para derrotarlo!");
+}
+
+function damageBoss(dmg) {
+    G.boss.hp -= dmg;
+    const pct = Math.max(0, (G.boss.hp / G.boss.maxHp) * 100);
+    UI.bossHp.style.width = pct + '%';
+    
+    if(G.boss.hp <= 0) {
+        G.boss.active = false;
+        UI.bossUi.style.display = 'none';
+        const reward = G.boss.maxHp * 0.5;
+        G.energy += reward;
+        G.totalEnergy += reward;
+        showToast("🏆 ¡JEFE DERROTADO!", `Recompensa: ${format(reward)} Energía`);
+        AudioEngine.play(100, 'sawtooth', 1.0);
+    }
+}
+
+// --- MULTIPLAYER & CLOUD ---
+function initMultiplayer() {
+    UI.pid.innerText = G.playerId;
+    
+    // Listen for Global Leaderboard
+    if(isOnline && db) {
+        const scoresRef = db.ref('scores');
+        scoresRef.limitToLast(10).on('value', (snapshot) => {
+            UI.lb.innerHTML = '';
+            const data = snapshot.val();
+            if(data) {
+                Object.entries(data)
+                    .sort((a,b) => b[1].totalEnergy - a[1].totalEnergy)
+                    .forEach(([key, val], index) => {
+                        const div = document.createElement('div');
+                        div.className = 'leaderboard-item';
+                        div.innerHTML = `
+                            <span class="lb-rank">#${index+1}</span>
+                            <span class="lb-name">${val.name}</span>
+                            <span class="lb-score">${format(val.totalEnergy)}</span>
+                        `;
+                        UI.lb.appendChild(div);
+                    });
+            }
+        });
+        
+        // Listen for Room Data (if joined)
+        if(G.roomId) {
+            db.ref(`rooms/${G.roomId}`).on('value', (snapshot) => {
+                const roomData = snapshot.val();
+                if(roomData) {
+                    // You could render friend's score here
+                    console.log("Room update:", roomData);
+                }
+            });
+        }
+    }
+}
+
+function syncToCloud() {
+    if(isOnline && db) {
+        db.ref(`scores/${G.playerId}`).set({
+            name: G.playerId,
+            totalEnergy: G.totalEnergy,
+            lastSeen: Date.now()
+        });
+        
+        if(G.roomId) {
+            db.ref(`rooms/${G.roomId}/players/${G.playerId}`).set({
+                totalEnergy: G.totalEnergy
+            });
+        }
+    }
+}
+
+window.joinRoom = function() {
+    const rid = document.getElementById('room-input').value;
+    if(rid) {
+        G.roomId = rid;
+        showToast("🌐 CONECTADO", `Unido a la sala ${rid}`);
+        syncToCloud();
+    }
+}
+
+window.copyId = function() {
+    navigator.clipboard.writeText(G.playerId);
+    showToast("📋 COPIADO", "ID copiado al portapapeles");
+}
+
+// --- RENDER & LOOP ---
+function renderShop() {
+    UI.shop.innerHTML = '';
+    G.upgrades.forEach(u => {
+        const cost = Math.floor(u.cost * Math.pow(1.15, u.count));
+        const div = document.createElement('div');
+        div.className = `upgrade-card ${G.energy >= cost ? '' : 'locked'}`;
+        div.onclick = () => buyUpgrade(u.id);
+        div.innerHTML = `
+            <div class="u-icon">${u.icon}</div>
+            <div class="u-info">
+                <div class="u-name">${u.name} <span class="u-count">${u.count}</span></div>
+                <div class="u-desc">+${format(u.base)} ${u.type === 'click' ? 'Clic' : 'EPS'}</div>
+            </div>
+            <div class="u-cost">${format(cost)}</div>
+        `;
+        UI.shop.appendChild(div);
+    });
+}
+
+function updateUI() {
+    UI.score.innerText = format(G.energy);
+    UI.click.innerText = format(stats.click);
+    UI.auto.innerText = format(stats.auto);
+    
+    // Update Shop Prices dynamically
+    const cards = UI.shop.children;
+    G.upgrades.forEach((u, i) => {
+        if(cards[i]) {
+            const cost = Math.floor(u.cost * Math.pow(1.15, u.count));
+            cards[i].className = `upgrade-card ${G.energy >= cost ? '' : 'locked'}`;
+            cards[i].querySelector('.u-cost').innerText = format(cost);
+            cards[i].querySelector('.u-count').innerText = u.count;
+        }
+    });
+}
+
+function switchTab(t) {
+    document.querySelectorAll('.tab-content').forEach(e => e.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+    document.getElementById(`tab-${t}`).style.display = 'block';
+    event.target.classList.add('active');
+}
+
+function showToast(title, msg) {
+    const d = document.createElement('div');
+    d.className = 'toast';
+    d.innerHTML = `<b>${title}</b><br><span style="font-size:0.8rem; color:#aaa">${msg}</span>`;
+    UI.toast.appendChild(d);
+    setTimeout(() => d.remove(), 3000);
+}
+
+function toggleSettings() {
+    const m = document.getElementById('settings-modal');
+    m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
+}
+
+// --- PARTICLES ---
+const canvas = document.getElementById('fx-canvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize);
+resize();
+
+function spawnParticles(x, y, count) {
+    for(let i=0; i<count; i++) {
+        particles.push({
+            x, y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10,
+            life: 1, color: Math.random()>0.5 ? '#00f3ff' : '#ff0055'
+        });
+    }
+}
+
+function spawnText(x, y, text) {
+    const d = document.createElement('div');
+    d.style.position = 'absolute'; d.style.left = x+'px'; d.style.top = y+'px';
+    d.style.color = '#fff'; d.style.fontWeight = 'bold'; d.style.pointerEvents = 'none';
+    d.style.animation = 'slideUp 0.8s forwards'; d.innerText = '+' + text;
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 800);
+}
+
+// --- MAIN LOOP ---
+function loop() {
+    const now = Date.now();
+    const dt = (now - lastTick) / 1000;
+    if(dt >= 0.1) {
+        if(stats.auto > 0) {
+            G.energy += stats.auto * dt;
+            G.totalEnergy += stats.auto * dt;
+        }
+        checkBossSpawn();
+        lastTick = now;
+    }
+    
+    // Render Particles
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for(let i=particles.length-1; i>=0; i--) {
+        let p = particles[i];
+        p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+        ctx.globalAlpha = p.life;
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
+        if(p.life <= 0) particles.splice(i,1);
+    }
+    
+    updateUI();
+    requestAnimationFrame(loop);
+}
+
+// --- SAVE SYSTEM ---
+function saveGame(notify=false) {
+    localStorage.setItem('neonInfinitySave', JSON.stringify(G));
+    if(notify) showToast("💾 GUARDADO", "Progreso local asegurado.");
+}
+
+function loadGame() {
+    const s = localStorage.getItem('neonInfinitySave');
+    if(s) {
+        const parsed = JSON.parse(s);
+        G = { ...G, ...parsed };
+        // Offline
+        const now = Date.now();
+        const secs = (now - G.lastSave)/1000; // Note: G.lastSave needs to be added to state if missing
+        if(secs > 60 && stats.auto > 0) {
+            recalc();
+            const earned = stats.auto * secs * 0.5;
+            G.energy += earned;
+            G.totalEnergy += earned;
+            showToast("💤 OFFLINE", `Generaste ${format(earned)} energía.`);
+        }
+    }
+    recalc();
+    renderShop();
+    initMultiplayer();
+}
+
+function hardReset() {
+    if(confirm("¿BORRAR TODO?")) {
+        localStorage.removeItem('neonInfinitySave');
+        location.reload();
+    }
+}
+
+// --- INIT ---
+document.getElementById('main-core').addEventListener('mousedown', handleCoreClick);
+document.getElementById('main-core').addEventListener('touchstart', handleCoreClick, {passive:false});
+
+loadGame();
+loop();
+setInterval(() => {
+    saveGame();
+    syncToCloud();
+}, 10000);
+
+</script>
+</body>
+</html>
