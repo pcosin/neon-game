@@ -55,6 +55,40 @@
             padding-bottom: var(--safe-bottom);
         }
 
+        /* ============ VERSION BADGE ============ */
+        .version-badge {
+            position: fixed;
+            bottom: calc(var(--nav-height) + var(--safe-bottom) + 10px);
+            left: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--border);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            color: #666;
+            font-family: monospace;
+            z-index: 50;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            pointer-events: none;
+        }
+
+        @media (max-width: 767px) {
+            .version-badge {
+                bottom: calc(var(--nav-height) + var(--safe-bottom) + 5px);
+                left: 5px;
+                font-size: 0.65rem;
+                padding: 4px 8px;
+            }
+        }
+
+        .version-header {
+            font-size: 0.7rem;
+            color: #555;
+            font-family: monospace;
+            margin-left: 8px;
+        }
+
         /* ============ DESKTOP LAYOUT (>1100px) ============ */
         .app-grid {
             display: grid;
@@ -149,6 +183,8 @@
                 font-weight: bold; 
                 letter-spacing: 2px;
                 color: var(--cyan);
+                display: flex;
+                align-items: center;
             }
             .mobile-score { 
                 font-family: monospace; 
@@ -437,6 +473,15 @@
         }
         .btn-action:active { transform: scale(0.97); }
 
+        .settings-version {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+            font-size: 0.75rem;
+            color: #555;
+            font-family: monospace;
+        }
+
         /* Landscape phone optimization */
         @media (max-height: 500px) and (orientation: landscape) {
             .the-core { width: 140px; height: 140px; }
@@ -452,11 +497,14 @@
 
 <canvas id="fx-canvas"></canvas>
 
+<!-- VERSION BADGE -->
+<div class="version-badge" id="version-badge">v0.0.0</div>
+
 <div class="app-grid">
     <!-- LEFT PANEL: STATS (Desktop) -->
     <div class="panel panel-left" id="panel-stats">
         <div class="mobile-header">
-            <div class="mobile-title">📊 ESTADÍSTICAS</div>
+            <div class="mobile-title">📊 ESTADÍSTICAS <span class="version-header" id="version-header-mobile1"></span></div>
             <div class="mobile-score" id="mobile-score-top">0</div>
         </div>
         <h2><span style="color:var(--cyan)">●</span> Estadísticas</h2>
@@ -488,7 +536,7 @@
     <!-- CENTER PANEL: GAME (Always visible) -->
     <div class="panel panel-center active" id="panel-game">
         <div class="mobile-header">
-            <div class="mobile-title">⚡ NEON CORE</div>
+            <div class="mobile-title">⚡ NEON CORE <span class="version-header" id="version-header-mobile2"></span></div>
             <div class="mobile-score" id="mobile-score-top2">0</div>
         </div>
 
@@ -510,7 +558,7 @@
     <!-- RIGHT PANEL: SHOP & FRIENDS -->
     <div class="panel panel-right" id="panel-shop">
         <div class="mobile-header">
-            <div class="mobile-title">🛒 TIENDA</div>
+            <div class="mobile-title">🛒 TIENDA <span class="version-header" id="version-header-mobile3"></span></div>
             <div class="mobile-score" id="mobile-score-top3">0</div>
         </div>
 
@@ -581,6 +629,11 @@
         <button onclick="saveGame(true)" class="btn-action" style="background:var(--cyan); color:#000;">💾 GUARDAR PARTIDA</button>
         <button onclick="hardReset()" class="btn-action" style="border:1px solid var(--magenta); background:transparent; color:var(--magenta);">☠️ REINICIAR TODO</button>
         <button onclick="toggleSettings()" class="btn-action" style="background:#333; color:#fff; margin-top:15px;">Cerrar</button>
+        
+        <div class="settings-version">
+            <div id="version-settings">NEON CORE v0.0.0</div>
+            <div style="margin-top: 5px; font-size: 0.7rem;">Build: <span id="build-date">2026.01.05</span></div>
+        </div>
     </div>
 </div>
 
@@ -589,6 +642,17 @@
  * NEON CORE: INFINITY WAR - MULTIPLATFORM EDITION
  * Optimized for Mobile, Tablet & Desktop
  */
+
+// --- VERSION INFO ---
+const VERSION = {
+    major: 2,
+    minor: 5,
+    patch: 0,
+    build: '2026.07.05',
+    codename: 'Infinity War'
+};
+
+const VERSION_STRING = `v${VERSION.major}.${VERSION.minor}.${VERSION.patch}`;
 
 // --- FIREBASE CONFIG (DEMO) ---
 const firebaseConfig = {
@@ -668,6 +732,25 @@ const UI = {
     reqSender: document.getElementById('req-sender'),
     friendsList: document.getElementById('friends-list')
 };
+
+// --- INIT VERSION DISPLAY ---
+function initVersionDisplay() {
+    const versionBadge = document.getElementById('version-badge');
+    const versionSettings = document.getElementById('version-settings');
+    const buildDate = document.getElementById('build-date');
+    const versionHeaders = document.querySelectorAll('.version-header');
+    
+    if(versionBadge) versionBadge.textContent = `${VERSION_STRING} ${VERSION.codename}`;
+    if(versionSettings) versionSettings.textContent = `NEON CORE ${VERSION_STRING} "${VERSION.codename}"`;
+    if(buildDate) buildDate.textContent = VERSION.build;
+    
+    versionHeaders.forEach(el => {
+        el.textContent = VERSION_STRING;
+    });
+    
+    console.log(`%c🎮 NEON CORE ${VERSION_STRING} "${VERSION.codename}"`, 'color: #00f3ff; font-size: 16px; font-weight: bold;');
+    console.log(`%cBuild: ${VERSION.build}`, 'color: #888; font-size: 12px;');
+}
 
 // --- LOGIC ---
 function recalc() {
@@ -797,7 +880,6 @@ window.sendFriendRequest = function() {
 function showRequestModal(senderId) {
     UI.reqSender.innerText = senderId;
     UI.reqModal.classList.add('show');
-    // Vibrate on mobile if supported
     if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
 }
 
@@ -843,7 +925,6 @@ window.copyId = function() {
             showToast("📋 COPIADO", "ID copiado al portapapeles");
         });
     } else {
-        // Fallback for older browsers
         const tmp = document.createElement('input');
         tmp.value = G.playerId;
         document.body.appendChild(tmp);
@@ -856,7 +937,6 @@ window.copyId = function() {
 
 // --- NAVIGATION ---
 window.switchPanel = function(panel) {
-    // Mobile only
     if(window.innerWidth > 1100) return;
     
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -873,7 +953,6 @@ window.switchPanel = function(panel) {
         if(window.innerWidth <= 767) {
             target.classList.add('active');
         } else if(window.innerWidth <= 1100) {
-            // Tablet: toggle right panel
             if(panel === 'shop') target.classList.toggle('open');
         }
     }
@@ -918,7 +997,6 @@ function updateUI() {
     UI.total.innerText = format(G.totalEnergy);
     UI.clicksEl.innerText = format(G.clicks);
     
-    // Update shop cards efficiently
     const cards = UI.shop.children;
     G.upgrades.forEach((u, i) => {
         if(cards[i]) {
@@ -1010,7 +1088,7 @@ function loop() {
     for(let i=particles.length-1; i>=0; i--) {
         let p = particles[i];
         p.x += p.vx; p.y += p.vy; 
-        p.vy += 0.3; // Gravity
+        p.vy += 0.3;
         p.life -= 0.02;
         ctx.globalAlpha = p.life;
         ctx.fillStyle = p.color;
@@ -1066,7 +1144,6 @@ const core = document.getElementById('main-core');
 core.addEventListener('mousedown', handleCoreClick);
 core.addEventListener('touchstart', handleCoreClick, {passive:false});
 
-// Prevent double-tap zoom on iOS
 let lastTouch = 0;
 document.addEventListener('touchend', (e) => {
     const now = Date.now();
@@ -1074,7 +1151,6 @@ document.addEventListener('touchend', (e) => {
     lastTouch = now;
 }, {passive:false});
 
-// Handle orientation changes
 window.addEventListener('orientationchange', () => {
     setTimeout(() => {
         resize();
@@ -1082,10 +1158,12 @@ window.addEventListener('orientationchange', () => {
     }, 200);
 });
 
-// Save on page hide (mobile)
 document.addEventListener('visibilitychange', () => {
     if(document.hidden) saveGame();
 });
+
+// Initialize version display
+initVersionDisplay();
 
 loadGame();
 loop();
@@ -1100,7 +1178,6 @@ function syncToCloud() {
     }
 }
 
-// Initial panel setup for mobile
 if(window.innerWidth <= 767) {
     document.getElementById('panel-game').classList.add('active');
 }
