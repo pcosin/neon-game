@@ -3,20 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NEON CORE: INFINITY WAR [MULTIPLAYER]</title>
-    <!-- Firebase SDK for Realtime Multiplayer -->
+    <title>NEON CORE: INFINITY WAR [FRIENDS UPDATE]</title>
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     
     <style>
         :root {
             --bg-deep: #050508;
-            --glass: rgba(20, 20, 30, 0.7);
+            --glass: rgba(20, 20, 30, 0.85);
             --border: rgba(255, 255, 255, 0.1);
             --cyan: #00f3ff;
             --magenta: #ff0055;
             --gold: #ffd700;
             --boss: #ff3300;
+            --friend: #00ff88;
             --font-main: 'Segoe UI', Roboto, sans-serif;
         }
 
@@ -31,14 +32,12 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background-image: 
-                radial-gradient(circle at 50% 50%, #1a1a2e 0%, #000 100%);
+            background-image: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #000 100%);
         }
 
-        /* --- LAYOUT --- */
         .app-grid {
             display: grid;
-            grid-template-columns: 320px 1fr 350px;
+            grid-template-columns: 320px 1fr 400px;
             width: 98vw;
             height: 96vh;
             max-width: 1920px;
@@ -75,7 +74,7 @@
         /* --- SCORE & CORE --- */
         .score-container { text-align: center; margin-bottom: 20px; }
         .main-score {
-            font-size: 4rem;
+            font-size: 3.5rem;
             font-weight: 900;
             background: linear-gradient(to bottom, #fff, #aaa);
             -webkit-background-clip: text;
@@ -109,24 +108,14 @@
         
         /* Boss Bar */
         .boss-container {
-            position: absolute;
-            top: 20px;
-            width: 80%;
-            display: none; /* Hidden by default */
-            flex-direction: column;
-            align-items: center;
+            position: absolute; top: 20px; width: 80%;
+            display: none; flex-direction: column; align-items: center;
         }
         .boss-name { color: var(--boss); font-weight: bold; text-shadow: 0 0 10px var(--boss); margin-bottom: 5px; }
-        .boss-hp-bar {
-            width: 100%; height: 15px; background: #333; border: 1px solid var(--boss);
-            border-radius: 10px; overflow: hidden;
-        }
-        .boss-hp-fill {
-            width: 100%; height: 100%; background: var(--boss);
-            transition: width 0.2s;
-        }
+        .boss-hp-bar { width: 100%; height: 15px; background: #333; border: 1px solid var(--boss); border-radius: 10px; overflow: hidden; }
+        .boss-hp-fill { width: 100%; height: 100%; background: var(--boss); transition: width 0.2s; }
 
-        /* --- UPGRADES --- */
+        /* --- UPGRADES (INFINITE SCROLL) --- */
         .scroll-area { flex-grow: 1; overflow-y: auto; padding-right: 5px; }
         .upgrade-card {
             background: rgba(255,255,255,0.03);
@@ -139,7 +128,7 @@
             cursor: pointer;
             transition: 0.2s;
         }
-        .upgrade-card:hover:not(.locked) { background: rgba(255,255,255,0.08); transform: translateX(-5px); }
+        .upgrade-card:hover:not(.locked) { background: rgba(255,255,255,0.08); transform: translateX(-5px); border-color: var(--cyan); }
         .upgrade-card.locked { opacity: 0.4; filter: grayscale(1); cursor: not-allowed; }
         
         .u-icon { font-size: 1.5rem; margin-right: 15px; width: 40px; text-align: center; }
@@ -149,51 +138,48 @@
         .u-cost { font-family: monospace; color: var(--gold); font-weight: bold; }
         .u-count { font-size: 0.8rem; color: #666; background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; margin-left: 10px; }
 
-        /* --- MULTIPLAYER PANEL --- */
-        .mp-status {
-            background: rgba(0,0,0,0.3);
-            padding: 10px;
-            border-radius: 10px;
-            margin-bottom: 15px;
-            font-size: 0.8rem;
-            text-align: center;
-            border: 1px solid var(--border);
+        /* --- MULTIPLAYER & FRIENDS --- */
+        .mp-section { margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        .my-id-box { 
+            background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; 
+            text-align: center; margin-bottom: 10px; cursor: pointer; border: 1px dashed var(--border);
         }
-        .mp-id { color: var(--cyan); font-family: monospace; cursor: pointer; }
-        .mp-input {
-            width: 100%; background: rgba(255,255,255,0.1); border: 1px solid var(--border);
-            color: #fff; padding: 8px; border-radius: 5px; margin-top: 5px; text-align: center;
+        .my-id-text { color: var(--cyan); font-family: monospace; font-weight: bold; }
+        
+        .friend-input-group { display: flex; gap: 5px; }
+        .mp-input { flex: 1; background: rgba(255,255,255,0.1); border: 1px solid var(--border); color: #fff; padding: 8px; border-radius: 5px; }
+        .btn-mp { background: var(--cyan); border: none; border-radius: 5px; color: #000; font-weight: bold; cursor: pointer; padding: 0 15px; }
+
+        .friends-list { margin-top: 10px; }
+        .friend-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px; background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2);
+            border-radius: 6px; margin-bottom: 5px;
         }
-        .btn-mp {
-            width: 100%; padding: 8px; margin-top: 5px;
-            background: var(--cyan); border: none; border-radius: 5px;
-            color: #000; font-weight: bold; cursor: pointer;
+        .friend-status { width: 8px; height: 8px; border-radius: 50%; background: var(--friend); box-shadow: 0 0 5px var(--friend); }
+
+        /* --- REQUEST MODAL --- */
+        .request-modal {
+            position: fixed; top: 20px; right: 20px;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border: 2px solid var(--friend);
+            padding: 20px; border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            z-index: 3000;
+            transform: translateX(150%); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 300px;
         }
-        .leaderboard-item {
-            display: flex; justify-content: space-between;
-            padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
-            font-size: 0.9rem;
-        }
-        .lb-rank { color: var(--gold); width: 30px; }
-        .lb-name { flex-grow: 1; color: #ccc; }
-        .lb-score { color: var(--cyan); font-family: monospace; }
+        .request-modal.show { transform: translateX(0); }
+        .req-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-accept { flex: 1; background: var(--friend); color: #000; border: none; padding: 8px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-decline { flex: 1; background: rgba(255,255,255,0.1); color: #fff; border: none; padding: 8px; border-radius: 5px; cursor: pointer; }
 
         /* --- CANVAS --- */
-        #fx-canvas {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 5;
-        }
+        #fx-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
 
         /* --- TOAST --- */
-        .toast-area {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            z-index: 1000; display: flex; flex-direction: column; gap: 10px;
-        }
-        .toast {
-            background: rgba(0,0,0,0.9); border-left: 4px solid var(--cyan);
-            color: #fff; padding: 15px 25px; border-radius: 4px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: slideUp 0.3s ease-out;
-        }
+        .toast-area { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: rgba(0,0,0,0.9); border-left: 4px solid var(--cyan); color: #fff; padding: 15px 25px; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); animation: slideUp 0.3s ease-out; }
         @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         @media (max-width: 1100px) {
@@ -233,7 +219,6 @@
 
     <!-- CENTER: GAME -->
     <div class="panel core-stage">
-        <!-- BOSS UI -->
         <div class="boss-container" id="boss-ui">
             <div class="boss-name">JEFE DE DIMENSIÓN</div>
             <div class="boss-hp-bar"><div class="boss-hp-fill" id="boss-hp"></div></div>
@@ -246,29 +231,45 @@
     <!-- RIGHT: SHOP & MP -->
     <div class="panel">
         <div class="tabs" style="display:flex; gap:5px; margin-bottom:15px;">
-            <button class="tab-btn active" onclick="switchTab('upgrades')" style="flex:1; padding:10px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:#888; border-radius:8px; cursor:pointer;">MEJORAS</button>
-            <button class="tab-btn" onclick="switchTab('mp')" style="flex:1; padding:10px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:#888; border-radius:8px; cursor:pointer;">🌐 RED</button>
+            <button class="tab-btn active" onclick="switchTab('upgrades')" style="flex:1; padding:10px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:#888; border-radius:8px; cursor:pointer;">TIENDA</button>
+            <button class="tab-btn" onclick="switchTab('mp')" style="flex:1; padding:10px; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:#888; border-radius:8px; cursor:pointer;">🌐 AMIGOS</button>
         </div>
 
         <div id="tab-upgrades" class="scroll-area tab-content" style="display:block;"></div>
         
         <div id="tab-mp" class="scroll-area tab-content" style="display:none;">
-            <div class="mp-status">
-                <div>TU ID DE JUGADOR:</div>
-                <div class="mp-id" id="my-player-id" onclick="copyId()">GENERANDO...</div>
-            </div>
-            
-            <div style="margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 20px;">
-                <div style="font-size: 0.8rem; color: #aaa; margin-bottom: 5px;">UNIRSE A SALA DE AMIGO:</div>
-                <input type="text" id="room-input" class="mp-input" placeholder="ID DE SALA">
-                <button class="btn-mp" onclick="joinRoom()">CONECTAR</button>
+            <div class="mp-section">
+                <div style="font-size:0.8rem; color:#aaa; margin-bottom:5px;">TU IDENTIFICADOR:</div>
+                <div class="my-id-box" onclick="copyId()">
+                    <div class="my-id-text" id="my-player-id">CONECTANDO...</div>
+                    <div style="font-size:0.7rem; color:#666; margin-top:2px;">(Click para copiar)</div>
+                </div>
             </div>
 
-            <h3 style="font-size: 0.9rem; color: var(--gold); margin-bottom: 10px;">TOP GLOBAL</h3>
-            <div id="leaderboard-list">
-                <!-- Leaderboard items injected here -->
+            <div class="mp-section">
+                <div style="font-size:0.8rem; color:#aaa; margin-bottom:5px;">AGREGAR AMIGO:</div>
+                <div class="friend-input-group">
+                    <input type="text" id="friend-id-input" class="mp-input" placeholder="ID del amigo">
+                    <button class="btn-mp" onclick="sendFriendRequest()">ENVIAR</button>
+                </div>
+            </div>
+
+            <h3 style="font-size: 0.9rem; color: var(--friend); margin-bottom: 10px;">AMIGOS EN LÍNEA</h3>
+            <div id="friends-list" class="friends-list">
+                <!-- Friends injected here -->
+                <div style="color:#666; font-size:0.8rem; text-align:center; padding:10px;">No tienes amigos conectados</div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- FRIEND REQUEST POPUP -->
+<div class="request-modal" id="req-modal">
+    <h3 style="color:var(--friend); margin-bottom:5px;">👋 Solicitud de Amistad</h3>
+    <p style="font-size:0.9rem; color:#ccc;"><span id="req-sender">Alguien</span> quiere ser tu amigo.</p>
+    <div class="req-actions">
+        <button class="btn-accept" onclick="acceptFriend()">ACEPTAR</button>
+        <button class="btn-decline" onclick="declineFriend()">RECHAZAR</button>
     </div>
 </div>
 
@@ -286,55 +287,71 @@
 
 <script>
 /**
- * NEON CORE: INFINITY WAR ENGINE
- * Includes LocalStorage Save + Firebase Multiplayer Sync
+ * NEON CORE: INFINITY WAR - FRIENDS EDITION
  */
 
-// --- FIREBASE CONFIG (Public Demo Config) ---
-// NOTE: In a real production app, you would use your own keys.
-// This uses a public demo project structure. If it hits limits, the game still works locally.
+// --- FIREBASE CONFIG (DEMO) ---
+// IMPORTANTE: Para uso real, crea tu proyecto en firebase.google.com y reemplaza esto.
 const firebaseConfig = {
-    apiKey: "AIzaSyB5JjYtqJ_yZ_jZ_jZ_jZ_jZ_jZ_jZ", // Placeholder for demo logic
+    apiKey: "AIzaSyB5JjYtqJ_yZ_jZ_jZ_jZ_jZ_jZ_jZ", 
     authDomain: "neon-core-demo.firebaseapp.com",
-    databaseURL: "https://neon-core-default-rtdb.firebaseio.com", // Using a generic public endpoint for demo
+    databaseURL: "https://neon-core-default-rtdb.firebaseio.com", 
     projectId: "neon-core-demo",
     storageBucket: "neon-core-demo.appspot.com",
     messagingSenderId: "123456789",
     appId: "1:123456789:web:abcdef"
 };
 
-// Initialize Firebase (Safe Load)
 let db = null;
 let isOnline = false;
 try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
     isOnline = true;
-} catch (e) {
-    console.warn("Firebase not configured or blocked. Running in Offline Mode.");
-}
+} catch (e) { console.warn("Offline Mode"); }
 
 // --- GAME STATE ---
 let G = {
     energy: 0,
     totalEnergy: 0,
-    playerId: 'Player_' + Math.floor(Math.random()*10000),
-    roomId: null,
-    upgrades: [
-        { id: 'u1', name: 'Bot Básico', type: 'auto', base: 2, cost: 15, count: 0, icon: '🤖' },
-        { id: 'u2', name: 'Clicker V2', type: 'click', base: 1, cost: 50, count: 0, icon: '👆' },
-        { id: 'u3', name: 'Servidor', type: 'auto', base: 10, cost: 250, count: 0, icon: '💾' },
-        { id: 'u4', name: 'Plasma', type: 'click', base: 5, cost: 1000, count: 0, icon: '⚡' },
-        { id: 'u5', name: 'IA Core', type: 'auto', base: 50, cost: 5000, count: 0, icon: '🧠' },
-        { id: 'u6', name: 'Quantum', type: 'both', base: 200, cost: 25000, count: 0, icon: '⚛️' },
-        { id: 'u7', name: 'Dyson', type: 'auto', base: 1000, cost: 150000, count: 0, icon: '☀️' },
-        { id: 'u8', name: 'Reality', type: 'click', base: 5000, cost: 1000000, count: 0, icon: '💎' }
-    ],
+    playerId: 'Player_' + Math.floor(Math.random()*100000),
+    friends: [], // List of friend IDs
+    pendingRequest: null, // ID of person who sent request
+    upgrades: [], // Will be populated procedurally
     boss: { active: false, hp: 10000, maxHp: 10000 }
 };
 
 let stats = { click: 1, auto: 0 };
 let lastTick = Date.now();
+
+// --- PROCEDURAL GENERATION ---
+const UPGRADE_PREFIXES = ['Nano', 'Cyber', 'Quantum', 'Plasma', 'Neural', 'Void', 'Solar', 'Dark'];
+const UPGRADE_SUFFIXES = ['Bot', 'Chip', 'Core', 'Link', 'Engine', 'Matrix', 'Drive', 'Sphere'];
+const ICONS = ['🤖', '💾', '⚡', '🧠', '⚛️', '☀️', '💎', '🚀', '🔭', '🔮'];
+
+function generateUpgrade(tier) {
+    const prefix = UPGRADE_PREFIXES[Math.floor(Math.random() * UPGRADE_PREFIXES.length)];
+    const suffix = UPGRADE_SUFFIXES[Math.floor(Math.random() * UPGRADE_SUFFIXES.length)];
+    const icon = ICONS[Math.floor(Math.random() * ICONS.length)];
+    
+    const baseCost = 15 * Math.pow(10, tier);
+    const basePower = Math.pow(5, tier);
+    const type = Math.random() > 0.5 ? 'auto' : 'click';
+    
+    return {
+        id: `gen_${tier}_${Date.now()}`,
+        name: `${prefix} ${suffix} MK-${tier+1}`,
+        type: type,
+        base: basePower,
+        cost: baseCost,
+        count: 0,
+        icon: icon,
+        tier: tier
+    };
+}
+
+// Initialize first 5 tiers
+for(let i=0; i<5; i++) G.upgrades.push(generateUpgrade(i));
 
 // --- DOM ELEMENTS ---
 const UI = {
@@ -344,36 +361,20 @@ const UI = {
     core: document.getElementById('main-core'),
     toast: document.getElementById('toast-container'),
     shop: document.getElementById('tab-upgrades'),
-    lb: document.getElementById('leaderboard-list'),
     pid: document.getElementById('my-player-id'),
     bossUi: document.getElementById('boss-ui'),
-    bossHp: document.getElementById('boss-hp')
-};
-
-// --- AUDIO ENGINE ---
-const AudioEngine = {
-    ctx: new (window.AudioContext || window.webkitAudioContext)(),
-    play(freq, type, dur) {
-        if(this.ctx.state === 'suspended') this.ctx.resume();
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start();
-        osc.stop(this.ctx.currentTime + dur);
-    }
+    bossHp: document.getElementById('boss-hp'),
+    reqModal: document.getElementById('req-modal'),
+    reqSender: document.getElementById('req-sender'),
+    friendsList: document.getElementById('friends-list')
 };
 
 // --- LOGIC ---
 function recalc() {
     let rClick = 1, rAuto = 0;
     G.upgrades.forEach(u => {
-        if(u.type === 'click' || u.type === 'both') rClick += u.base * u.count;
-        if(u.type === 'auto' || u.type === 'both') rAuto += u.base * u.count;
+        if(u.type === 'click') rClick += u.base * u.count;
+        if(u.type === 'auto') rAuto += u.base * u.count;
     });
     stats.click = rClick;
     stats.auto = rAuto;
@@ -388,23 +389,15 @@ function format(n) {
 }
 
 function handleCoreClick(e) {
-    // Prevent default touch behavior
     if(e.type === 'touchstart') e.preventDefault();
-    
     let power = stats.click;
     G.energy += power;
     G.totalEnergy += power;
     
-    // Visuals
     spawnText(e.clientX || window.innerWidth/2, e.clientY || window.innerHeight/2, format(power));
     spawnParticles(e.clientX || window.innerWidth/2, e.clientY || window.innerHeight/2, 5);
-    AudioEngine.play(400 + Math.random()*200, 'sine', 0.1);
     
-    // Boss Damage
-    if(G.boss.active) {
-        damageBoss(power);
-    }
-    
+    if(G.boss.active) damageBoss(power);
     updateUI();
 }
 
@@ -415,107 +408,134 @@ function buyUpgrade(id) {
     if(G.energy >= cost) {
         G.energy -= cost;
         u.count++;
+        
+        // Unlock next tier if this one has 10 levels
+        if(u.count % 10 === 0) {
+            const maxTier = Math.max(...G.upgrades.map(x => x.tier));
+            G.upgrades.push(generateUpgrade(maxTier + 1));
+            showToast("🔓 NUEVA TECNOLOGÍA", "Se ha desbloqueado una mejora de nivel superior.");
+            renderShop();
+        }
+        
         recalc();
-        renderShop();
-        AudioEngine.play(600, 'square', 0.2);
         updateUI();
-        syncToCloud(); // Update score on cloud
+        // Update specific card only for performance
+        renderShop(); 
+        syncToCloud();
     }
 }
 
 // --- BOSS SYSTEM ---
 function checkBossSpawn() {
-    if(!G.boss.active && G.totalEnergy > 10000 && Math.random() < 0.001) {
-        startBossFight();
-    }
+    if(!G.boss.active && G.totalEnergy > 10000 && Math.random() < 0.001) startBossFight();
 }
 
 function startBossFight() {
     G.boss.active = true;
-    G.boss.maxHp = G.totalEnergy * 0.1; // Boss HP is 10% of your total
+    G.boss.maxHp = G.totalEnergy * 0.1;
     G.boss.hp = G.boss.maxHp;
     UI.bossUi.style.display = 'flex';
-    showToast("⚠️ ¡JEFE DETECTADO!", "¡Haz clic para derrotarlo!");
+    showToast("⚠️ ¡JEFE DETECTADO!", "¡Ataca para derrotarlo!");
 }
 
 function damageBoss(dmg) {
     G.boss.hp -= dmg;
-    const pct = Math.max(0, (G.boss.hp / G.boss.maxHp) * 100);
-    UI.bossHp.style.width = pct + '%';
-    
+    UI.bossHp.style.width = Math.max(0, (G.boss.hp / G.boss.maxHp) * 100) + '%';
     if(G.boss.hp <= 0) {
         G.boss.active = false;
         UI.bossUi.style.display = 'none';
         const reward = G.boss.maxHp * 0.5;
         G.energy += reward;
         G.totalEnergy += reward;
-        showToast("🏆 ¡JEFE DERROTADO!", `Recompensa: ${format(reward)} Energía`);
-        AudioEngine.play(100, 'sawtooth', 1.0);
+        showToast("🏆 ¡JEFE DERROTADO!", `Recompensa: ${format(reward)}`);
     }
 }
 
-// --- MULTIPLAYER & CLOUD ---
+// --- MULTIPLAYER & FRIENDS ---
 function initMultiplayer() {
     UI.pid.innerText = G.playerId;
     
-    // Listen for Global Leaderboard
+    // Listen for Friend Requests
     if(isOnline && db) {
-        const scoresRef = db.ref('scores');
-        scoresRef.limitToLast(10).on('value', (snapshot) => {
-            UI.lb.innerHTML = '';
-            const data = snapshot.val();
-            if(data) {
-                Object.entries(data)
-                    .sort((a,b) => b[1].totalEnergy - a[1].totalEnergy)
-                    .forEach(([key, val], index) => {
-                        const div = document.createElement('div');
-                        div.className = 'leaderboard-item';
-                        div.innerHTML = `
-                            <span class="lb-rank">#${index+1}</span>
-                            <span class="lb-name">${val.name}</span>
-                            <span class="lb-score">${format(val.totalEnergy)}</span>
-                        `;
-                        UI.lb.appendChild(div);
-                    });
+        const myRef = db.ref(`users/${G.playerId}`);
+        
+        // Update my status
+        myRef.update({ totalEnergy: G.totalEnergy, lastSeen: Date.now() });
+        
+        // Listen for incoming requests
+        myRef.child('pendingRequest').on('value', (snapshot) => {
+            const senderId = snapshot.val();
+            if(senderId && senderId !== G.pendingRequest) {
+                G.pendingRequest = senderId;
+                showRequestModal(senderId);
             }
         });
-        
-        // Listen for Room Data (if joined)
-        if(G.roomId) {
-            db.ref(`rooms/${G.roomId}`).on('value', (snapshot) => {
-                const roomData = snapshot.val();
-                if(roomData) {
-                    // You could render friend's score here
-                    console.log("Room update:", roomData);
-                }
-            });
-        }
-    }
-}
 
-function syncToCloud() {
-    if(isOnline && db) {
-        db.ref(`scores/${G.playerId}`).set({
-            name: G.playerId,
-            totalEnergy: G.totalEnergy,
-            lastSeen: Date.now()
+        // Listen for Friends List updates
+        myRef.child('friends').on('value', (snapshot) => {
+            const friendsData = snapshot.val();
+            renderFriendsList(friendsData);
         });
-        
-        if(G.roomId) {
-            db.ref(`rooms/${G.roomId}/players/${G.playerId}`).set({
-                totalEnergy: G.totalEnergy
-            });
-        }
     }
 }
 
-window.joinRoom = function() {
-    const rid = document.getElementById('room-input').value;
-    if(rid) {
-        G.roomId = rid;
-        showToast("🌐 CONECTADO", `Unido a la sala ${rid}`);
-        syncToCloud();
+window.sendFriendRequest = function() {
+    const targetId = document.getElementById('friend-id-input').value.trim();
+    if(!targetId || targetId === G.playerId) return;
+    
+    if(isOnline && db) {
+        // Check if user exists (simple check by setting a request)
+        db.ref(`users/${targetId}/pendingRequest`).set(G.playerId)
+            .then(() => {
+                showToast("📨 SOLICITUD ENVIADA", "Esperando aprobación...");
+                document.getElementById('friend-id-input').value = '';
+            })
+            .catch(err => showToast("❌ ERROR", "ID no encontrado o error de red."));
     }
+}
+
+function showRequestModal(senderId) {
+    UI.reqSender.innerText = senderId;
+    UI.reqModal.classList.add('show');
+}
+
+window.acceptFriend = function() {
+    if(!G.pendingRequest) return;
+    
+    // Add me to their list
+    db.ref(`users/${G.pendingRequest}/friends/${G.playerId}`).set(true);
+    // Add them to my list
+    db.ref(`users/${G.playerId}/friends/${G.pendingRequest}`).set(true);
+    // Clear request
+    db.ref(`users/${G.playerId}/pendingRequest`).remove();
+    
+    UI.reqModal.classList.remove('show');
+    G.pendingRequest = null;
+    showToast("✅ AMIGO AGREGADO", "Ahora pueden competir juntos.");
+}
+
+window.declineFriend = function() {
+    db.ref(`users/${G.playerId}/pendingRequest`).remove();
+    UI.reqModal.classList.remove('show');
+    G.pendingRequest = null;
+}
+
+function renderFriendsList(friendsData) {
+    UI.friendsList.innerHTML = '';
+    if(!friendsData) {
+        UI.friendsList.innerHTML = '<div style="color:#666; font-size:0.8rem; text-align:center; padding:10px;">No tienes amigos conectados</div>';
+        return;
+    }
+    
+    Object.keys(friendsData).forEach(friendId => {
+        const div = document.createElement('div');
+        div.className = 'friend-item';
+        div.innerHTML = `
+            <span style="color:var(--friend); font-weight:bold;">${friendId}</span>
+            <div class="friend-status"></div>
+        `;
+        UI.friendsList.appendChild(div);
+    });
 }
 
 window.copyId = function() {
@@ -548,7 +568,7 @@ function updateUI() {
     UI.click.innerText = format(stats.click);
     UI.auto.innerText = format(stats.auto);
     
-    // Update Shop Prices dynamically
+    // Efficient DOM updates for shop
     const cards = UI.shop.children;
     G.upgrades.forEach((u, i) => {
         if(cards[i]) {
@@ -619,7 +639,6 @@ function loop() {
         lastTick = now;
     }
     
-    // Render Particles
     ctx.clearRect(0,0,canvas.width,canvas.height);
     for(let i=particles.length-1; i>=0; i--) {
         let p = particles[i];
@@ -644,17 +663,8 @@ function loadGame() {
     const s = localStorage.getItem('neonInfinitySave');
     if(s) {
         const parsed = JSON.parse(s);
-        G = { ...G, ...parsed };
-        // Offline
-        const now = Date.now();
-        const secs = (now - G.lastSave)/1000; // Note: G.lastSave needs to be added to state if missing
-        if(secs > 60 && stats.auto > 0) {
-            recalc();
-            const earned = stats.auto * secs * 0.5;
-            G.energy += earned;
-            G.totalEnergy += earned;
-            showToast("💤 OFFLINE", `Generaste ${format(earned)} energía.`);
-        }
+        // Merge carefully to keep procedural upgrades logic intact
+        G = { ...G, ...parsed, upgrades: parsed.upgrades || G.upgrades };
     }
     recalc();
     renderShop();
@@ -674,11 +684,16 @@ document.getElementById('main-core').addEventListener('touchstart', handleCoreCl
 
 loadGame();
 loop();
-setInterval(() => {
-    saveGame();
-    syncToCloud();
-}, 10000);
+setInterval(() => { saveGame(); syncToCloud(); }, 10000);
 
+function syncToCloud() {
+    if(isOnline && db) {
+        db.ref(`users/${G.playerId}`).update({
+            totalEnergy: G.totalEnergy,
+            lastSeen: Date.now()
+        });
+    }
+}
 </script>
 </body>
 </html>
